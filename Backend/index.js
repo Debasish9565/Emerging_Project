@@ -58,7 +58,7 @@ async function run() {
     app.post("/api/set-token", async (req, res) => {
       const user = req.body;
       const token = jwt.sign(user, process.env.ASSESS_SECRET, {
-        expiresIn: "24h",
+        expiresIn: "30d",
       });
       res.send({ token });
     });
@@ -148,7 +148,7 @@ async function run() {
     });
 
     //classes
-    app.post("/new-class", verifyJWT, verifyInstructor, async (req, res) => {
+    app.post("/new-class", verifyAdmin, verifyInstructor, async (req, res) => {
       const newClass = req.body;
       //newClass.availableSeats = parseInt(newClass.availableSeats);
       const result = await classesCollection.insertOne(newClass);
@@ -161,12 +161,17 @@ async function run() {
       res.send(result);
     });
     //filter by email
-    app.get("/class/:email", verifyJWT, verifyInstructor, async (req, res) => {
-      const email = req.params.email;
-      const query = { instructoremail: email };
-      const result = await classesCollection.find(query).toArray();
-      res.send(result);
-    });
+    app.get(
+      "/classes/:email",
+      verifyJWT,
+      verifyInstructor,
+      async (req, res) => {
+        const email = req.params.email;
+        const query = { instructoremail: email };
+        const result = await classesCollection.find(query).toArray();
+        res.send(result);
+      }
+    );
 
     //manage class
     app.get("/classes-manage", async (req, res) => {
@@ -175,25 +180,30 @@ async function run() {
     });
 
     //update class
-    app.patch("/change-status/:id", verifyAdmin, async (req, res) => {
-      const id = req.params.id;
-      const status = req.body.status;
-      const reason = req.body.reason;
-      const filter = { _id: new ObjectId(id) };
-      const options = { upsert: true };
-      const updateDoc = {
-        $set: {
-          status: status,
-          reason: reason,
-        },
-      };
-      const result = await classesCollection.updateOne(
-        filter,
-        updateDoc,
-        options
-      );
-      res.send(result);
-    });
+    app.patch(
+      "/change-status/:id",
+      verifyJWT,
+      verifyAdmin,
+      async (req, res) => {
+        const id = req.params.id;
+        const status = req.body.status;
+        const reason = req.body.reason;
+        const filter = { _id: new ObjectId(id) };
+        const options = { upsert: true };
+        const updateDoc = {
+          $set: {
+            status: status,
+            reason: reason,
+          },
+        };
+        const result = await classesCollection.updateOne(
+          filter,
+          updateDoc,
+          options
+        );
+        res.send(result);
+      }
+    );
 
     //get approved class
     app.get("/approved-classes", async (req, res) => {
@@ -215,6 +225,7 @@ async function run() {
       "/update-class/:id",
       verifyJWT,
       verifyInstructor,
+
       async (req, res) => {
         const id = req.params.id;
         const updateClass = req.body;
@@ -303,19 +314,19 @@ async function run() {
     //post payment info
     app.post("/payment-info", verifyJWT, async (req, res) => {
       const paymentInfo = req.body;
-      const classessId = paymentInfo.classessId;
+      const classesId = paymentInfo.classesId;
       const userEmail = paymentInfo.userEmail;
       const singleClassId = req.query.classId;
       let query;
       if (singleClassId) {
         query = { classId: singleClassId, userMail: userEmail };
       } else {
-        query = { classId: { $in: classessId } };
+        query = { classId: { $in: classesId } };
       }
-      const classessQuery = {
-        _id: { $in: classessId.map((id) => new ObjectId(id)) },
+      const classesQuery = {
+        _id: { $in: classesId.map((id) => new ObjectId(id)) },
       };
-      const classes = await classesCollection.find(classessQuery).toArray();
+      const classes = await classesCollection.find(classesQuery).toArray();
       const newEnrolledData = {
         userEmail: userEmail,
         classId: singleClassId.map((id) => new ObjectId(id)),
@@ -336,7 +347,7 @@ async function run() {
         },
       };
       const updatedResult = await classesCollection.updateMany(
-        classessQuery,
+        classesQuery,
         updatedDoc,
         { upsert: true }
       );
@@ -446,7 +457,7 @@ async function run() {
       res.send(result);
     });
 
-    app.get("enrolled-classess/:email", verifyJWT, async (req, res) => {
+    app.get("enrolled-classes/:email", verifyJWT, async (req, res) => {
       const email = req.params.email;
       const query = { userEmail: email };
       const pipeline = [
