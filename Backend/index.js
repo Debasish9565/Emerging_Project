@@ -46,7 +46,7 @@ async function run() {
 
     //create database
     const database = client.db("yoga-master");
-    const usersCollection = database.collection("users");
+    const userCollection = database.collection("users");
     const classesCollection = database.collection("classes");
     const cartCollection = database.collection("cart");
     const paymentCollection = database.collection("payments");
@@ -67,7 +67,7 @@ async function run() {
     const verifyAdmin = async (req, res, next) => {
       const email = req.decoded.email;
       const query = { email: email };
-      const user = usersCollection.findOne(query);
+      const user = userCollection.findOne(query);
       if (user.role === "admin") {
         next();
       } else {
@@ -78,7 +78,7 @@ async function run() {
     const verifyInstructor = async (req, res, next) => {
       const email = req.decoded.email;
       const query = { email: email };
-      const user = usersCollection.findOne(query);
+      const user = userCollection.findOne(query);
       if (user.role === "instructor") {
         next();
       } else {
@@ -88,13 +88,13 @@ async function run() {
 
     app.post("/new-user", async (req, res) => {
       const newUser = req.body;
-      const result = await usersCollection.insertOne(newUser);
+      const result = await userCollection.insertOne(newUser);
       res.send(result);
     });
 
     //get user
     app.get("/users", async (req, res) => {
-      const result = await usersCollection.find().toArray();
+      const result = await userCollection.find().toArray();
       res.send(result);
     });
 
@@ -102,7 +102,7 @@ async function run() {
     app.get("/users/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
-      const result = await usersCollection.findOne(query);
+      const result = await userCollection.findOne(query);
       res.send(result);
     });
 
@@ -110,7 +110,7 @@ async function run() {
     app.get("/user/:email", verifyJWT, async (req, res) => {
       const email = req.params.email;
       const query = { email: email };
-      const result = await usersCollection.findOne(query);
+      const result = await userCollection.findOne(query);
       res.send(result);
     });
 
@@ -118,7 +118,7 @@ async function run() {
     app.delete("/delete-user/:id", verifyJWT, verifyAdmin, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
-      const result = await usersCollection.deleteOne(query);
+      const result = await userCollection.deleteOne(query);
       res.send(result);
     });
 
@@ -139,11 +139,7 @@ async function run() {
           skills: updatedUser.skills ? updatedUser.skills : null,
         },
       };
-      const result = await usersCollection.updateOne(
-        filter,
-        updateDoc,
-        options
-      );
+      const result = await userCollection.updateOne(filter, updateDoc, options);
       res.send(result);
     });
 
@@ -390,7 +386,7 @@ async function run() {
     });
 
     //popular instructor
-    app.get("/popular_instructors", async (req, res) => {
+    app.get("/popular-instructors", async (req, res) => {
       const pipeline = [
         {
           $group: {
@@ -408,6 +404,7 @@ async function run() {
             as: "instructor",
           },
         },
+        { $match: { "instructor.role": "instructor" } },
         {
           $project: {
             _id: 0,
@@ -435,7 +432,7 @@ async function run() {
         await classesCollection.find({ status: "pending" })
       ).toArray().length;
       const instructor = (
-        await usersCollection.find({ role: "instructor" })
+        await userCollection.find({ role: "instructor" })
       ).toArray().length;
       const totalClasses = (await classesCollection.find()).toArray().length;
       const totalEnrolled = (await enrolledCollection.find()).toArray().length;
@@ -451,7 +448,7 @@ async function run() {
 
     //get all instructor
     app.get("/instructors", async (req, res) => {
-      const result = await usersCollection
+      const result = await userCollection
         .find({ role: "instructor" })
         .toArray();
       res.send(result);
